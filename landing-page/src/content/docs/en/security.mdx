@@ -1,0 +1,43 @@
+# Security & CA Certs
+
+Decrypting HTTPS traffic using Man-in-the-Middle (MITM) proxy techniques carries inherent security implications. Follow these best practices to ensure safety.
+
+---
+
+## 1. How MITM Decryption Works
+
+Standard HTTPS secure connections encrypt payloads end-to-end using TLS. Operating systems validate servers using a built-in store of trusted root authorities.
+
+When Trafexia proxy is active:
+1. The mobile device sends a request.
+2. Trafexia intercepts it, dynamically generating and signing a certificate matching the target domain using its local Root CA.
+3. Since your device trusts the **Trafexia Root CA**, it accepts the fake certificate.
+4. Trafexia decrypts, logs, and displays the content, then re-encrypts the request and forwards it to the destination server.
+
+---
+
+## 2. Crucial Security Precautions
+
+> [!WARNING]
+> **A Root CA certificate is a master key.** Anyone who possesses the private key corresponding to a trusted Root CA on your system can intercept and modify all HTTPS connections (such as online banking, email, or passwords) without triggering security alerts.
+
+Because of this:
+- **Locally Isolated Keys**: Trafexia generates a unique Root CA key pair locally on each machine. It is stored in local user directories and is never uploaded anywhere.
+- **Dedicated Test Devices**: Only install CA certificates on test devices or software emulators.
+- **Avoid Production Devices**: Do not install developer CA certificates on personal production devices that carry sensitive credentials or financial apps.
+
+---
+
+## 3. How to Uninstall the CA Certificate
+
+When you finish debugging, remove the certificate from your system to restore its security configurations.
+
+### For Android
+1. Go to **Settings** &gt; **Security** &gt; **More security settings** &gt; **Encryption & credentials** &gt; **Trusted credentials**.
+2. Tap the **User** tab.
+3. Tap `Trafexia CA` and select **Remove** or **Disable**.
+
+### For iOS
+1. Go to **Settings** &gt; **General** &gt; **VPN & Device Management**.
+2. Under **Configuration Profiles**, select `Trafexia CA`.
+3. Tap **Remove Profile**, enter your device passcode, and confirm.

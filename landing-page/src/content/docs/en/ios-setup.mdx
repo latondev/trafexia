@@ -1,0 +1,48 @@
+# iOS Setup
+
+Channelling HTTP/HTTPS traffic from an iOS device (iPhone/iPad) requires manually configuring proxy settings, downloading a configuration profile, and explicitly enabling full trust for the Root CA. Follow this guide.
+
+---
+
+## Step 1: Connect to the Same Wi-Fi
+Ensure your iPhone/iPad and the computer running Trafexia are connected to the same Wi-Fi local network.
+
+---
+
+## Step 2: Configure Manual Proxy on iOS
+1. Open **Settings** &gt; **Wi-Fi** on iOS.
+2. Tap the blue **"i"** info icon next to your active network connection.
+3. Scroll down and select **Configure Proxy** &gt; choose **Manual**.
+4. Enter the details:
+   - **Server**: Your computer's local IP address (e.g. `192.168.1.15`).
+   - **Port**: Enter `8888`.
+   - Leave *Authentication* disabled.
+5. Tap **Save** in the top right.
+
+---
+
+## Step 3: Download the Configuration Profile
+1. Launch **Safari** on iOS (You must use Safari; other browsers like Chrome will not initiate the configuration profile dialogue).
+2. Visit `http://[COMPUTER_IP]:8888` or scan the QR code from the Trafexia Desktop app.
+3. When prompted: *"This website is trying to download a configuration profile..."*, tap **Allow**.
+4. A notification will say *"Profile Downloaded"*. Tap **Close**.
+
+---
+
+## Step 4: Install the Profile
+1. Open **Settings** on iOS.
+2. At the top of the settings list, tap the new **Profile Downloaded** option.
+3. Tap **Install** in the top right corner.
+4. Enter your device passcode and confirm the installation.
+
+---
+
+## Step 5: Enable Full Trust (Critical Step)
+*If you miss this step, your device will experience internet connection failures and SSL warnings.*
+
+1. Go to **Settings** &gt; **General** &gt; **About**.
+2. Scroll to the bottom and select **Certificate Trust Settings**.
+3. Under **Enable full trust for root certificates**, find `Trafexia CA` and toggle the switch to **ON** (green).
+4. Tap **Continue** on the warning prompt.
+
+You are now ready. All HTTP/HTTPS traffic from iOS will be routed through the Trafexia Desktop logs window.

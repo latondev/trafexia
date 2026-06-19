@@ -1,0 +1,51 @@
+# Getting Started / Hướng dẫn bắt đầu
+
+Chào mừng bạn đến với tài liệu hướng dẫn của **Trafexia** — phần mềm nguồn mở mạnh mẽ chạy trên máy tính (desktop app) để chặn đứng (intercept) và phân tích lưu lượng mạng HTTP/HTTPS từ các thiết bị di động Android và iOS.
+
+---
+
+## 1. Yêu cầu hệ thống
+
+Trước khi cài đặt Trafexia, hãy đảm bảo hệ thống của bạn đáp ứng các yêu cầu sau:
+
+- **Hệ điều hành**:
+  - macOS 11 (Big Sur) trở lên (Hỗ trợ tốt cả chip Intel và Apple Silicon M1/M2/M3).
+  - Windows 10 hoặc 11 (x64).
+  - Linux (Ubuntu 20.04+, Debian, Fedora).
+- **Yêu cầu đối với reverse engineering (khuyên dùng)**:
+  - Cài đặt **Android SDK** (để sử dụng lệnh `adb`).
+  - Python 3.x và công cụ **Frida** nếu bạn có nhu cầu tự động bypass SSL Pinning.
+
+---
+
+## 2. Cài đặt
+
+Bạn có thể sử dụng Trafexia thông qua các bản build sẵn hoặc chạy trực tiếp từ mã nguồn.
+
+### Cách 1: Tải bản build sẵn (Khuyên dùng)
+Truy cập trang [GitHub Releases](https://github.com/danieldev23/trafexia/releases) và tải về phiên bản phù hợp:
+- **macOS**: Tải file `.dmg`, kéo thả ứng dụng Trafexia vào thư mục `Applications`.
+- **Windows**: Tải file `.exe` cài đặt hoặc chạy trực tiếp bản Portable.
+- **Linux**: Tải file `.AppImage`, cấp quyền chạy (`chmod +x trafexia.AppImage`) và khởi động.
+
+### Cách 2: Chạy từ mã nguồn
+Nếu bạn là nhà phát triển muốn đóng góp hoặc tùy chỉnh, hãy thực hiện:
+```bash
+# Clone repository
+git clone https://github.com/danieldev23/trafexia.git
+cd trafexia
+
+# Cài đặt dependencies bằng npm hoặc yarn
+npm install
+
+# Khởi chạy chế độ Development (Electron + Vue 3)
+npm run dev
+```
+
+---
+
+## 3. Khởi động ứng dụng lần đầu
+
+1. **Khởi chạy ứng dụng**: Mở ứng dụng Trafexia trên máy tính của bạn.
+2. **Khởi động Proxy Server**: Click nút **"Start Proxy"** ở thanh điều khiển chính. Mặc định, Trafexia sẽ lắng nghe trên cổng `8888`.
+3. **Cấu hình thiết bị**: Chuyển tiếp tới bước cấu hình cho [Android Setup](/docs/android-setup) hoặc [iOS Setup](/docs/ios-setup) để bắt đầu chặn đứng lưu lượng mạng.

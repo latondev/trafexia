@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0A0A0B;
+  --color-surface: #111114;
+  --color-border-custom: #1E1E24;
+  --color-accent-green: #00FF88;
+  --color-info-blue: #5E6AD2;
+  --color-text-primary: #F0F0F0;
+  --color-text-muted: #666680;
+  --color-danger-red: #FF4444;
+
+  --font-sans: var(--font-inter), sans-serif;
+  --font-mono: var(--font-jetbrains), monospace;
+  --font-code: var(--font-fira), monospace;
+}
+
+:root {
+  --background: #0A0A0B;
+  --foreground: #F0F0F0;
+}
+
+body {
+  background-color: #0A0A0B;
+  color: #F0F0F0;
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-jetbrains), monospace;
+}
+
+/* Custom UI Rules: Maximum border radius of 6px */
+.rounded-custom {
+  border-radius: 6px;
+}
+
+/* Subtle Scanlines Overlay for Hero */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(
+    rgba(10, 10, 11, 0) 50%,
+    rgba(0, 0, 0, 0.4) 50%
+  );
+  background-size: 100% 4px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Hex Grid SVG Background Pattern */
+.bg-hex-grid {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='41.56' viewBox='0 0 24 41.56'%3E%3Cpath d='M12 0 L24 6.93 L24 20.78 L12 27.71 L0 20.78 L0 6.93 Z M0 41.56 L12 34.64 L24 41.56' fill='none' stroke='%231E1E24' stroke-width='0.75'/%3E%3C/svg%3E");
+  background-size: 24px 41.56px;
+}
+
+/* Custom Animations */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1.2s infinite;
+}
+
+/* Custom glow borders */
+.glow-border-green {
+  border: 1px solid #1E1E24;
+  transition: all 0.3s ease;
+}
+
+.glow-border-green:hover {
+  border-color: #00FF88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.15);
+}
+
+/* Custom Scrollbar for terminal logs */
+.terminal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.terminal-scrollbar::-webkit-scrollbar-track {
+  background: #0A0A0B;
+}
+
+.terminal-scrollbar::-webkit-scrollbar-thumb {
+  background: #1E1E24;
+  border-radius: 2px;
+}
+
+.terminal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #00FF88;
+}
+
+/* Fira Code Ligatures */
+.font-code-ligatures {
+  font-family: var(--font-fira), monospace;
+  font-variant-ligatures: normal;
+}

@@ -1,0 +1,67 @@
+# MCP Server Setup / Cấu hình MCP Server
+
+Trafexia tích hợp sẵn một **MCP (Model Context Protocol) Server** hoạt động qua giao thức SSE (Server-Sent Events). Chức năng này cho phép các tác nhân AI (như Claude Desktop, Cursor, Copilot...) đọc và phân tích trực tiếp lưu lượng mạng đang bị chặn đứng bởi Trafexia.
+
+---
+
+## 1. Cơ chế hoạt động
+
+Khi kích hoạt trong phần cài đặt của Trafexia:
+- Trafexia Desktop sẽ khởi chạy một máy chủ phụ tại cổng `8890`.
+- Máy chủ này cung cấp endpoint SSE tại địa chỉ `http://localhost:8890/sse`.
+- Các mô hình ngôn ngữ lớn (LLM) thông qua client MCP có thể gọi các công cụ (tools) do Trafexia cung cấp để đọc danh sách request, xem nội dung chi tiết hoặc dọn sạch lịch sử.
+
+---
+
+## 2. Danh sách các công cụ hỗ trợ (Tools)
+
+MCP Server của Trafexia cung cấp 3 công cụ chính cho AI:
+
+1. **`list_requests`**: 
+   - *Mô tả*: Liệt kê danh sách các request đã bắt được, sắp xếp theo thời gian mới nhất.
+   - *Tham số*: `limit` (số lượng request tối đa), `search` (lọc theo URL/Host/Path), `method` (lọc theo GET/POST...).
+2. **`get_request_details`**:
+   - *Mô tả*: Lấy chi tiết Header và Body của một request cụ thể bằng ID.
+   - *Tham số*: `id` (ID của request, bắt buộc).
+3. **`clear_requests`**:
+   - *Mô tả*: Xóa toàn bộ lịch sử request trong cơ sở dữ liệu.
+
+---
+
+## 3. Cấu hình trên Claude Desktop
+
+Để Claude Desktop nhận diện và sử dụng được Trafexia:
+
+1. Mở hoặc tạo file cấu hình Claude Desktop tại đường dẫn:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+2. Thêm cấu hình máy chủ `trafexia` vào phần `mcpServers`:
+```json
+{
+  "mcpServers": {
+    "trafexia": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sse",
+        "http://localhost:8890/sse"
+      ]
+    }
+  }
+}
+```
+3. Khởi động lại ứng dụng Claude Desktop. Bạn sẽ thấy biểu tượng ổ cắm (cắm MCP) sáng lên, cho phép bạn hỏi: *"Hãy liệt kê các API request mới nhất mà Trafexia bắt được."*
+
+---
+
+## 4. Cấu hình trên Cursor IDE
+
+Cursor hỗ trợ kết nối trực tiếp các công cụ MCP để hỗ trợ lập trình viên viết code dựa trên API thật:
+
+1. Mở **Cursor Settings** &gt; **Features** &gt; cuộn xuống phần **MCP**.
+2. Click nút **"+ Add New MCP Server"**.
+3. Điền thông tin cấu hình:
+   - **Name**: `Trafexia`
+   - **Type**: Chọn `SSE`
+   - **URL**: Điền `http://localhost:8890/sse`
+4. Click **Save**. Trạng thái của server sẽ chuyển sang màu xanh lá cây (Active). Bạn có thể dùng phím tắt `@Trafexia` hoặc mô tả cho AI đọc dữ liệu API để sinh code trực tiếp.

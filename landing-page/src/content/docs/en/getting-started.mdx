@@ -1,0 +1,51 @@
+# Getting Started
+
+Welcome to the **Trafexia** documentation guide — a powerful open-source desktop application designed to intercept and analyze HTTP/HTTPS traffic from mobile devices (Android and iOS).
+
+---
+
+## 1. System Requirements
+
+Before installing Trafexia, make sure your operating system meets the following prerequisites:
+
+- **Operating System**:
+  - macOS 11 (Big Sur) or higher (Native support for both Intel and Apple Silicon M1/M2/M3 chips).
+  - Windows 10 or 11 (x64).
+  - Linux (Ubuntu 20.04+, Debian, Fedora).
+- **Reverse Engineering tools (Recommended)**:
+  - **Android SDK** installed (specifically the `adb` command).
+  - Python 3.x and **Frida** tools if you plan on script-injecting and dynamic hooks.
+
+---
+
+## 2. Installation
+
+You can get started using either pre-built binaries or by running directly from the source code.
+
+### Option A: Pre-built Binaries (Recommended)
+Visit the [GitHub Releases](https://github.com/danieldev23/trafexia/releases) page and download the package matching your OS:
+- **macOS**: Download the `.dmg` package, open it, and drag Trafexia to your `Applications` folder.
+- **Windows**: Download the `.exe` installer or run the standalone portable package.
+- **Linux**: Download the `.AppImage` package, make it executable (`chmod +x trafexia.AppImage`), and run it.
+
+### Option B: Build from Source
+If you are a developer looking to customize or contribute, follow these commands:
+```bash
+# Clone the repository
+git clone https://github.com/danieldev23/trafexia.git
+cd trafexia
+
+# Install dependencies using npm
+npm install
+
+# Run the Electron + Vue 3 development server
+npm run dev
+```
+
+---
+
+## 3. Launching for the First Time
+
+1. **Launch the Application**: Open Trafexia on your computer.
+2. **Start the Proxy Server**: Click the **"Start Proxy"** button in the header toolbar. By default, the server listens on port `8888`.
+3. **Configure Devices**: Follow the [Android Setup](/docs/android-setup) or [iOS Setup](/docs/ios-setup) guides to begin capturing mobile network payloads.

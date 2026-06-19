@@ -1,0 +1,49 @@
+# Application Features
+
+Trafexia provides a complete set of features to intercept, analyze, mutate, mock, and inspect network traffic.
+
+---
+
+## 1. MITM Proxy (Man-in-the-Middle)
+
+Trafexia runs an internal HTTP/HTTPS proxy server using Node.js network streams.
+- **On-the-fly Cert Generation**: Each Trafexia installation generates a unique Root CA certificate locally. This CA is used to dynamically sign certificates for accessed hostnames on the fly.
+- **Port configurations**: Listens on port `8888` by default (configurable in Settings).
+
+---
+
+## 2. Dynamic QR Configuration
+
+The desktop application displays network settings as a QR code.
+- Scanning this QR code using a mobile camera allows mobile clients to auto-configure proxy IP addresses and download certificates, saving manual entry.
+
+---
+
+## 3. Pattern Detection
+
+The payload analyzer scans HTTP/HTTPS headers and request/response bodies to identify standard configurations:
+- **JWT (JSON Web Tokens)**: Decodes token headers, payloads, and signatures on the fly.
+- **API Keys & Credentials**: Detects patterns corresponding to AWS, Firebase, Stripe, Slack, or Google Cloud tokens.
+- **Encoding Formats**: Identifies and decodes Base64 and URL encoding parameters.
+
+---
+
+## 4. Map Remote & Map Local
+
+- **Map Remote**: Routes matched regex URL requests to alternative servers (e.g. redirecting `api.production.com` to `localhost:3000`).
+- **Map Local**: Replaces API response payloads with local files on your computer (JSON, HTML, images).
+
+---
+
+## 5. Mock & Composer
+
+- **Mock Manager**: Configure fixed response rules. Set mock status codes (404, 500, 200), custom headers, and bodies.
+- **Request Composer**: Select historical captures, modify methods, headers, or payloads, and click **"Send"** to replay requests directly from the desktop.
+
+---
+
+## 6. Throttle Control
+
+Simulate slow or unstable networks to test edge cases:
+- Bandwidth caps (GPRS, 3G, 4G presets).
+- Latency injection (artificial delay in ms).

@@ -1,0 +1,49 @@
+# Application Features / Chi tiết các chức năng
+
+Trafexia cung cấp một bộ công cụ đầy đủ để bạn không chỉ chặn đứng lưu lượng mà còn có thể phân tích cấu trúc, chỉnh sửa, giả lập (mocking) và so sánh dữ liệu mạng.
+
+---
+
+## 1. MITM Proxy (Man-in-the-Middle)
+
+Trafexia chạy một HTTP/HTTPS proxy server nội bộ sử dụng Node.js và các thư viện phân tích gói tin cấp thấp.
+- **Tự động cấp chứng chỉ**: Mỗi cài đặt Trafexia sẽ tự động tạo ra một Root CA duy nhất với mã định danh ngẫu nhiên trên máy tính của bạn. Chứng chỉ này được dùng để ký trực tiếp (on-the-fly) cho các chứng chỉ của các tên miền (domain) được truy cập bởi điện thoại.
+- **Port config**: Lắng nghe mặc định trên cổng `8888` (có thể tùy chỉnh trong phần Settings).
+
+---
+
+## 2. Thiết lập nhanh bằng Mã QR
+
+Ứng dụng hiển thị thông tin cấu hình dưới dạng mã QR động.
+- Khi người dùng quét mã này, ứng dụng đồng hành hoặc cấu hình Wi-Fi nâng cao có thể tự động điền IP máy chủ và tải file cấu chỉ nhanh chóng, loại bỏ việc nhập địa chỉ IP thủ công dễ nhầm lẫn.
+
+---
+
+## 3. Pattern Detection (Nhận diện tự động)
+
+Hệ thống phân tích payload của Trafexia sẽ tự động rà quét Header và Body của từng request/response để phát hiện các mẫu dữ liệu phổ biến:
+- **JWT (JSON Web Token)**: Tự động tách nhỏ Header, Payload và Signature để hiển thị dạng JSON có thể đọc được trực tiếp.
+- **API Keys & Credentials**: Nhận diện các token của AWS, Google Cloud, Firebase, Stripe, Slack...
+- **Mã hóa Base64 & URL**: Tự động hiển thị chuỗi giải mã kế bên chuỗi gốc.
+
+---
+
+## 4. Map Remote & Map Local (Ánh xạ phản hồi)
+
+- **Map Remote**: Cho phép bạn định tuyến các request khớp với mẫu regex tới một máy chủ thử nghiệm khác. (Ví dụ: Chuyển toàn bộ request từ `api.prod.com/v1/` sang `localhost:3000/v1/`).
+- **Map Local**: Thay thế trực tiếp phản hồi của một API bằng nội dung của một file có sẵn trên máy tính của bạn (định dạng JSON, XML, HTML, Image...). Cực kỳ hữu ích khi kiểm thử giao diện thiết bị mà không cần sửa đổi API backend.
+
+---
+
+## 5. Mock & Composer (Giả lập và Gửi yêu cầu)
+
+- **Mock Manager**: Tạo trước các quy tắc phản hồi cố định dựa trên URL. Bạn có thể quy định mã trạng thái trả về (Status Code 404, 500, 200...), tùy biến Header và Body phản hồi.
+- **Request Composer**: Cho phép bạn chọn một request bất kỳ từ lịch sử capture, chỉnh sửa phương thức, URL, Header hoặc Body và bấm nút **"Send"** để gửi lại lên server trực tiếp từ Trafexia.
+
+---
+
+## 6. Throttle Control (Giới hạn băng thông)
+
+Giả lập các điều kiện mạng yếu để kiểm thử khả năng xử lý lỗi và trải nghiệm người dùng (UX) của ứng dụng di động:
+- Giới hạn tốc độ Download/Upload (ví dụ: mô phỏng mạng GPRS, 3G, 4G...).
+- Thêm độ trễ nhân tạo (Latency/Rtt) tính bằng mili-giây (ms).

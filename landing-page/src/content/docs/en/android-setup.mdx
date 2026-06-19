@@ -1,0 +1,58 @@
+# Android Setup
+
+To intercept HTTP/HTTPS traffic from an Android device using Trafexia, you must configure a manual proxy and install our custom CA certificate. Follow this step-by-step guide.
+
+---
+
+## Step 1: Connect to the Same Wi-Fi
+Ensure your Android mobile device and the computer running Trafexia are connected to the same local Wi-Fi network.
+
+---
+
+## Step 2: Configure Manual Proxy
+1. On your Android device, go to **Settings** &gt; **Wi-Fi**.
+2. Tap the gear icon or long-press the Wi-Fi network name you are connected to, and select **Modify Network** or **Manage Network Settings**.
+3. Locate the **Proxy** option and change it from *None* to *Manual*.
+4. Enter the configuration:
+   - **Proxy hostname**: Your computer's local IP address (e.g. `192.168.1.15`). You can find this IP address at the top header of Trafexia's Desktop app.
+   - **Proxy port**: Enter `8888`.
+5. Save the Wi-Fi configuration.
+
+---
+
+## Step 3: Download and Install CA Certificate
+Android requires you to trust Trafexia's Root CA certificate to decrypt secure HTTPS traffic.
+
+1. Open Trafexia Desktop app and click **Start Proxy**.
+2. Open a mobile web browser (Chrome/Firefox) on Android and visit: `http://[COMPUTER_IP]:8888` or scan the QR code from the Trafexia Desktop UI.
+3. Download the certificate file (usually named `trafexia-ca.crt`).
+4. Go to **Settings** &gt; **Security** &gt; **More security settings** &gt; **Encryption & credentials** &gt; **Install a certificate** &gt; **CA certificate**.
+5. Select the downloaded file to install it. Give it a name like `Trafexia CA`.
+
+---
+
+## Step 4: Bypass Android 7.0+ Restrictions (SSL Pinning Bypass)
+Beginning with Android 7.0 (API Level 24), apps ignore user-installed CA certificates by default. To inspect third-party app HTTPS calls, use one of the following methods:
+
+### Method A: Install Certificate as System CA (Root Required)
+If you have a rooted device or are using an emulator (like Genymotion or LDPlayer):
+1. Convert the Trafexia certificate into a system-compatible hashed filename (e.g., `8a7b6c5d.0`).
+2. Copy the file into `/system/etc/security/cacerts/`.
+3. Set correct permissions: `chmod 644 /system/etc/security/cacerts/[hash].0`.
+
+### Method B: Modify Network Security Config (APK Re-packaging)
+Edit the app's `res/xml/network_security_config.xml` file or use a tool to repackage the APK:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+      <certificates src="user" /> <!-- Allows user-installed CAs -->
+    </trust-anchors>
+  </base-config>
+</network-security-config>
+```
+
+### Method C: Use Frida Script Hooks
+Utilize Frida to hook standard framework libraries (OkHttp3, Conscrypt, TrustManager) at runtime to bypass certificate validation checks.

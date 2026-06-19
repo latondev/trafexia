@@ -1,0 +1,44 @@
+# Security & CA Cert / Bảo mật và Chứng chỉ
+
+Việc phân tích lưu lượng mã hóa HTTPS bằng phương pháp Man-in-the-Middle (MITM) đòi hỏi hiểu biết sâu sắc về các rủi ro bảo mật đi kèm. Hãy tuân thủ các nguyên tắc dưới đây để bảo vệ thiết bị của bạn.
+
+---
+
+## 1. Cơ chế hoạt động của MITM Proxy
+
+Thông thường, kết nối HTTPS giữa thiết bị di động của bạn và máy chủ dịch vụ được bảo mật bằng mã hóa đầu cuối (end-to-end encryption) sử dụng giao thức TLS. Trình duyệt hoặc hệ điều hành trên điện thoại sẽ xác thực chứng chỉ số của máy chủ thông qua một Danh sách các Tổ chức Chứng nhận Gốc (Root CAs) được tin cậy mặc định.
+
+Khi bạn bật Trafexia và cấu hình proxy:
+1. Thiết bị di động gửi yêu cầu kết nối tới máy chủ.
+2. Trafexia chặn kết nối này và tự tạo ra một chứng chỉ giả mạo có tên miền trùng với máy chủ thật.
+3. Vì thiết bị di động đã cài đặt và kích hoạt tin cậy **Trafexia Root CA**, nó sẽ chấp nhận chứng chỉ giả mạo này và thiết lập kết nối an toàn với Trafexia thay vì máy chủ thật.
+4. Trafexia giải mã dữ liệu gửi từ điện thoại, hiển thị lên màn hình desktop, sau đó mã hóa lại và gửi tiếp tới máy chủ thật.
+
+---
+
+## 2. Các cảnh báo an toàn quan trọng
+
+> [!WARNING]
+> **Chứng chỉ CA là chìa khóa vạn năng.** Bất kỳ ai sở hữu khóa riêng (private key) của chứng chỉ CA được cài trên máy bạn đều có thể giả mạo mọi trang web mã hóa HTTPS (như ngân hàng, facebook, email) mà thiết bị của bạn không hề phát hiện ra cảnh báo nào.
+
+Vì lý do đó:
+- **Khóa riêng độc quyền**: Trafexia tự tạo khóa riêng độc bản trên từng máy tính cài đặt. Khóa này được lưu cục bộ và không được gửi đi bất kỳ đâu.
+- **Thiết bị thử nghiệm**: Chỉ nên cài đặt chứng chỉ CA của Trafexia lên các máy ảo giả lập (Emulator) hoặc điện thoại dùng riêng cho mục đích phát triển ứng dụng (Development Devices).
+- **Không sử dụng cho máy sản xuất**: Tránh cài đặt chứng chỉ này lên các thiết bị cá nhân chính chứa tài khoản ngân hàng, ví điện tử hoặc dữ liệu cá nhân quan trọng của bạn.
+
+---
+
+## 3. Hướng dẫn gỡ bỏ chứng chỉ CA khỏi thiết bị
+
+Sau khi hoàn thành việc kiểm thử và đảo ngược ứng dụng, bạn nên gỡ bỏ chứng chỉ CA ngay lập tức để khôi phục trạng thái bảo mật của thiết bị.
+
+### Trên thiết bị Android
+1. Truy cập **Settings** &gt; **Security** &gt; **More security settings** &gt; **Encryption & credentials** &gt; **Trusted credentials** (Cài đặt &gt; Bảo mật &gt; Cài đặt bảo mật khác &gt; Mã hóa & thông tin xác thực &gt; Thông tin xác thực đáng tin cậy).
+2. Chọn tab **User** (Người dùng).
+3. Tìm chứng chỉ `Trafexia CA`, nhấn vào và chọn **Remove** (Xóa) hoặc **Disable** (Vô hiệu hóa).
+
+### Trên thiết bị iOS
+1. Truy cập **Settings** &gt; **General** &gt; **VPN & Device Management** (Cài đặt &gt; Cài đặt chung &gt; Quản lý VPN & Thiết bị).
+2. Trong phần **Configuration Profile** (Hồ sơ cấu hình), tìm cấu hình có tên `Trafexia CA`.
+3. Nhấp vào profile đó và chọn **Remove Profile** (Xóa hồ sơ). Nhập mật mã mở khóa máy để xác nhận xóa.
+4. Điều này sẽ tự động gỡ bỏ chứng chỉ gốc khỏi hệ thống của thiết bị.

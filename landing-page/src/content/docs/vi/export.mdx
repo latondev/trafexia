@@ -1,0 +1,59 @@
+# Export Suite / Xuất bản dữ liệu
+
+Trafexia cung cấp nhiều tùy chọn xuất bản (export) linh hoạt để bạn dễ dàng chia sẻ dữ liệu bắt mạng hoặc đưa dữ liệu sang các công cụ kiểm thử khác như Postman, cURL hay các script lập trình.
+
+---
+
+## 1. Xuất file HAR (HTTP Archive)
+
+HAR là một định dạng tiêu chuẩn dựa trên JSON để lưu trữ thông tin về hiệu năng và traffic của trình duyệt/thiết bị mạng.
+- **Cách thực hiện**: Chọn các request bạn muốn xuất (hoặc chọn toàn bộ danh sách), nhấp chuột phải hoặc chọn nút **"Export HAR"** từ thanh công cụ.
+- **Sử dụng**: Bạn có thể import file HAR này vào các công cụ như Chrome DevTools, Charles Proxy, Fiddler hoặc gửi cho thành viên khác trong team để kiểm tra lại.
+
+---
+
+## 2. Copy dưới dạng cURL Command
+
+Nếu bạn muốn chạy lại một request cụ thể trong terminal của mình:
+- **Cách thực hiện**: Nhấp chuột phải vào một request trong bảng danh sách lưu lượng, chọn **Copy as cURL**.
+- **Kết quả**: Bạn sẽ nhận được một chuỗi lệnh cURL hoàn chỉnh trong Clipboard bao gồm cả Method, Headers, Cookies và raw Body dữ liệu.
+```bash
+# Ví dụ chuỗi cURL được sao chép
+curl -X POST "https://api.example.com/v1/login" \
+     -H "Content-Type: application/json" \
+     -H "User-Agent: iOS/16.4 Trafexia" \
+     -d '{"username":"admin","password":"password"}'
+```
+
+---
+
+## 3. Xuất mã nguồn Python Requests
+
+Để hỗ trợ đắc lực cho các reverse engineer viết tool cào dữ liệu hoặc mô phỏng API:
+- **Cách thực hiện**: Chọn request cần chuyển đổi, nhấp chuột phải và chọn **Copy as Python Script**.
+- **Kết quả**: Trafexia tự động sinh đoạn code Python sử dụng thư viện `requests` tương đương:
+```python
+import requests
+
+url = "https://api.example.com/v1/login"
+headers = {
+    "Content-Type": "application/json",
+    "User-Agent": "iOS/16.4 Trafexia"
+}
+data = {
+    "username": "admin",
+    "password": "password"
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code)
+print(response.json())
+```
+
+---
+
+## 4. Xuất thành Postman Collection
+
+Nếu bạn đang kiểm thử API và muốn lưu trữ trong môi trường Postman:
+- **Cách thực hiện**: Chọn nhiều request cùng một nhóm, nhấp chuột phải chọn **Export to Postman Collection**.
+- **Kết quả**: Trafexia tạo ra một file JSON theo chuẩn cấu trúc *Postman Collection v2.1*. Bạn chỉ cần vào Postman, chọn **Import** và tải lên file này để tiếp tục kiểm thử.

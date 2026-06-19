@@ -1,0 +1,48 @@
+# iOS Setup / Cấu hình iOS
+
+Việc chặn đứng lưu lượng HTTP/HTTPS từ thiết bị iOS (iPhone/iPad) yêu cầu cấu hình thủ công proxy và kích hoạt quyền tin cậy tuyệt đối cho chứng chỉ CA của Trafexia. Hãy làm theo hướng dẫn từng bước sau.
+
+---
+
+## Bước 1: Kết nối cùng mạng Wi-Fi
+Đảm bảo thiết bị di động iOS của bạn và máy tính chạy Trafexia đang kết nối chung một mạng Wi-Fi (cùng lớp mạng nội bộ).
+
+---
+
+## Bước 2: Cấu hình Proxy thủ công trên iOS
+1. Trên iPhone/iPad, truy cập **Settings** &gt; **Wi-Fi**.
+2. Nhấn vào chữ **"i"** tròn màu xanh kế bên mạng Wi-Fi bạn đang kết nối.
+3. Cuộn xuống dưới cùng, chọn **Configure Proxy** &gt; chuyển sang **Manual** (Thủ công).
+4. Điền các thông số:
+   - **Server**: Địa chỉ IP nội bộ của máy tính chạy Trafexia (Ví dụ: `192.168.1.15`).
+   - **Port**: Nhập `8888`.
+   - Để trống phần *Authentication* (Xác thực).
+5. Nhấn **Save** ở góc trên cùng bên phải.
+
+---
+
+## Bước 3: Tải xuống Profile Chứng chỉ
+1. Mở trình duyệt mặc định **Safari** trên iOS (Lưu ý: Bắt buộc phải là Safari, Chrome hoặc các trình duyệt khác sẽ không hoạt động đúng cho mục đích này).
+2. Truy cập địa chỉ `http://[IP_MÁY_TÍNH]:8888` hoặc quét mã QR từ giao diện chính của ứng dụng Trafexia Desktop.
+3. Khi nhận được hộp thoại cảnh báo: *"This website is trying to download a configuration profile..."*, chọn **Allow** (Cho phép).
+4. Hệ thống sẽ thông báo: *"Profile Downloaded"* (Đã tải về hồ sơ cấu hình). Chọn **Close**.
+
+---
+
+## Bước 4: Cài đặt Profile
+1. Truy cập lại vào **Settings** trên iOS.
+2. Bạn sẽ thấy một mục mới xuất hiện ở phía trên cùng: **Profile Downloaded** (Đã tải về hồ sơ). Nhấp vào mục này.
+3. Chọn **Install** (Cài đặt) ở góc trên bên phải, nhập mật khẩu mở khóa màn hình thiết bị của bạn.
+4. Xác nhận cài đặt bằng cách tiếp tục chọn **Install**.
+
+---
+
+## Bước 5: Kích hoạt quyền tin cậy (Bắt buộc)
+*Đây là bước quan trọng nhất mà đa số nhà phát triển thường bỏ quên, dẫn tới lỗi kết nối mạng.*
+
+1. Truy cập **Settings** &gt; **General** &gt; **About** (Cài đặt &gt; Cài đặt chung &gt; Giới thiệu).
+2. Cuộn xuống dưới cùng và chọn **Certificate Trust Settings** (Cài đặt tin cậy chứng nhận).
+3. Trong phần **Enable full trust for root certificates** (Bật tin cậy đầy đủ cho các chứng nhận gốc), tìm chứng chỉ `Trafexia CA` và gạt công tắc sang **ON** (màu xanh lá).
+4. Khi nhận được cảnh báo, hãy xác nhận chọn **Continue** (Tiếp tục).
+
+Giờ đây, toàn bộ lưu lượng HTTP/HTTPS từ thiết bị iOS sẽ được gửi qua Trafexia Desktop app và giải mã bình thường.

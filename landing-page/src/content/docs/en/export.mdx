@@ -1,0 +1,58 @@
+# Export Suite
+
+Trafexia offers multiple options to export captured traffic logs to share with teammates or import into developer suites.
+
+---
+
+## 1. Export HAR (HTTP Archive) files
+
+HAR is a JSON-structured archive format for logging web browser/network transactions.
+- **Action**: Select the requests you want to export, right-click, and choose **Export as HAR**.
+- **Use case**: Import the file into Chrome DevTools, Charles Proxy, Fiddler, or share with other QA team members.
+
+---
+
+## 2. Copy as cURL command
+
+Rerun a specific request from your terminal:
+- **Action**: Right-click the request and select **Copy as cURL**.
+- **Result**: Copies a complete shell command including method, headers, cookies, and body:
+```bash
+curl -X POST "https://api.example.com/v1/login" \
+     -H "Content-Type: application/json" \
+     -H "User-Agent: iOS/16.4 Trafexia" \
+     -d '{"username":"admin","password":"password"}'
+```
+
+---
+
+## 3. Copy as Python Requests Script
+
+Quickly convert captured requests into executable Python scripts:
+- **Action**: Right-click the request and select **Copy as Python Script**.
+- **Result**: Generates ready-to-run Python code using the `requests` library:
+```python
+import requests
+
+url = "https://api.example.com/v1/login"
+headers = {
+    "Content-Type": "application/json",
+    "User-Agent": "iOS/16.4 Trafexia"
+}
+data = {
+    "username": "admin",
+    "password": "password"
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.status_code)
+print(response.json())
+```
+
+---
+
+## 4. Export to Postman Collections
+
+Save traffic logs into Postman collections:
+- **Action**: Select a group of requests, right-click, and select **Export as Postman Collection**.
+- **Result**: Generates a JSON file using the *Postman Collection v2.1* standard schema. Import it into Postman to run tests.

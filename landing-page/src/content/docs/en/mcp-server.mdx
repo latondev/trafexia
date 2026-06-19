@@ -1,0 +1,67 @@
+# MCP Server Setup
+
+Trafexia features an integrated **MCP (Model Context Protocol) Server** that communicates via SSE (Server-Sent Events). This allows AI assistants (such as Claude Desktop, Cursor, and Copilot) to inspect and reason about captured network traffic logs directly.
+
+---
+
+## 1. How It Works
+
+When enabled in Trafexia's Desktop Settings:
+- The desktop app starts a local SSE-based server on port `8890`.
+- The endpoint is exposed at `http://localhost:8890/sse`.
+- Large Language Models (LLMs) can call tools exposed by this server to read captured request details or clear logging histories.
+
+---
+
+## 2. Supported Tools
+
+Trafexia's MCP Server exposes 3 main tools for LLM agents:
+
+1. **`list_requests`**: 
+   - *Description*: Lists captured HTTP/HTTPS request headers and properties, sorted descending by timestamp.
+   - *Parameters*: `limit` (max number of requests), `search` (filter by URL/Host/Path), `method` (filter by GET/POST/etc).
+2. **`get_request_details`**:
+   - *Description*: Retrieves full request/response header and body content for a specific transaction ID.
+   - *Parameters*: `id` (numeric request ID, required).
+3. **`clear_requests`**:
+   - *Description*: Clears all request logs from Trafexia's local database.
+
+---
+
+## 3. Configuration for Claude Desktop
+
+To add Trafexia tools into Claude Desktop:
+
+1. Open or create the Claude Desktop config file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+2. Add `trafexia` to the `mcpServers` object:
+```json
+{
+  "mcpServers": {
+    "trafexia": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sse",
+        "http://localhost:8890/sse"
+      ]
+    }
+  }
+}
+```
+3. Restart Claude Desktop. The MCP connection plug icon will light up, allowing you to ask queries like: *"Show me the latest API calls captured by Trafexia."*
+
+---
+
+## 4. Configuration for Cursor IDE
+
+Cursor allows integrating MCP servers to let code assistants build models based on live API calls:
+
+1. Open **Cursor Settings** &gt; **Features** &gt; scroll down to **MCP**.
+2. Click **"+ Add New MCP Server"**.
+3. Fill in the options:
+   - **Name**: `Trafexia`
+   - **Type**: Select `SSE`
+   - **URL**: Enter `http://localhost:8890/sse`
+4. Click **Save**. The server status will show a green dot (Active). You can now reference `@Trafexia` in Cursor Chat to write API integration code using real payloads.

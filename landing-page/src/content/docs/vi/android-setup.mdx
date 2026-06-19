@@ -1,0 +1,57 @@
+# Android Setup / Cấu hình Android
+
+Để chặn đứng lưu lượng HTTP/HTTPS từ thiết bị Android của bạn bằng Trafexia, bạn cần thực hiện cấu hình proxy và cài đặt chứng chỉ CA. Dưới đây là các bước hướng dẫn chi tiết.
+
+---
+
+## Bước 1: Kết nối cùng mạng Wi-Fi
+Đảm bảo thiết bị di động Android của bạn và máy tính chạy Trafexia đang kết nối chung một mạng Wi-Fi (cùng lớp mạng nội bộ).
+
+---
+
+## Bước 2: Cấu hình Proxy thủ công
+1. Trên điện thoại Android, truy cập **Settings** &gt; **Wi-Fi**.
+2. Nhấn giữ hoặc nhấn vào biểu tượng bánh răng cạnh tên Wi-Fi đang kết nối, chọn **Modify Network** (Sửa đổi mạng).
+3. Tìm phần **Proxy**, chuyển từ *None* sang *Manual* (Thủ công).
+4. Điền các thông số:
+   - **Proxy hostname**: Nhập địa chỉ IP nội bộ của máy tính của bạn (Ví dụ: `192.168.1.15`). Bạn có thể tìm thấy IP này ngay trên giao diện Trafexia.
+   - **Proxy port**: Nhập `8888`.
+5. Lưu lại cấu hình.
+
+---
+
+## Bước 3: Tải và Cài đặt CA Certificate
+Android yêu cầu chứng chỉ CA từ proxy để giải mã lưu lượng HTTPS.
+
+1. Khởi chạy Trafexia Desktop app và click **Start Proxy**.
+2. Mở trình duyệt Web trên Android (Chrome/Firefox), truy cập địa chỉ: `http://[IP_MÁY_TÍNH]:8888` hoặc quét mã QR từ màn hình Trafexia.
+3. Tải file chứng chỉ (thường là `trafexia-ca.crt`).
+4. Truy cập **Settings** &gt; **Security** &gt; **More security settings** &gt; **Encryption & credentials** &gt; **Install a certificate** &gt; **CA certificate**.
+5. Chọn file chứng chỉ vừa tải về để cài đặt. Đặt tên gợi nhớ (ví dụ: `Trafexia CA`).
+
+---
+
+## Bước 4: Vượt rào cản Android 7.0+ (SSL Pinning Bypass)
+Từ Android 7.0 (API level 24), hệ điều hành mặc định bỏ qua các chứng chỉ do người dùng cài đặt cho các ứng dụng bên thứ ba. Để phân tích HTTPS thành công, bạn phải dùng một trong các phương pháp sau:
+
+### Cách A: Cài đặt chứng chỉ vào Hệ thống (Yêu cầu Root)
+Nếu thiết bị của bạn đã root hoặc đang chạy thiết bị giả lập (như Genymotion, LDPlayer):
+1. Chuyển chứng chỉ CA của Trafexia vào thư mục `/system/etc/security/cacerts/` dưới dạng mã băm đặc biệt (ví dụ: `8a7b6c5d.0`).
+2. Gán quyền `chmod 644` cho file chứng chỉ này.
+
+### Cách B: Chỉnh sửa Network Security Config (Tùy chỉnh APK)
+Chỉnh sửa file `res/xml/network_security_config.xml` trong source code ứng dụng hoặc dùng công cụ đóng gói lại APK:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+      <certificates src="user" /> <!-- Cho phép chứng chỉ người dùng cài đặt -->
+    </trust-anchors>
+  </base-config>
+</network-security-config>
+```
+
+### Cách C: Dùng Frida Script
+Sử dụng Frida để hook ứng dụng tại runtime nhằm vô hiệu hóa các phương thức xác thực chứng chỉ (OkHttp3, TrustManager, Conscrypt...).
