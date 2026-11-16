@@ -277,6 +277,7 @@ export const IPC_CHANNELS = {
   IOS_LAUNCH_DEVICE: "ios:launch-device",
   ANDROID_INSTALL_APK: "android:install-apk",
   ANDROID_INSTALL_MULTIPLE_APKS: "android:install-multiple-apks",
+  ANDROID_RUN_APK_EMULATOR: "android:run-apk-emulator",
 
   // Request Replay & Composer
   REQUEST_REPLAY: "request:replay",
@@ -596,6 +597,7 @@ export interface IpcApi {
   getAndroidAvds: () => Promise<string[]>;
   launchAndroidAvd: (name: string) => Promise<boolean>;
   installApk: (deviceId: string, apkPath: string) => Promise<boolean>;
+  runApkInEmulator: (apkPath: string, packageName: string, proxyPort: number, analysisOutputDir?: string) => Promise<void>;
   installMultipleApks: (deviceId: string, apkPaths: string[]) => Promise<boolean>;
   getIosDevices: () => Promise<IosDevice[]>;
   launchIosDevice: (udid: string) => Promise<boolean>;

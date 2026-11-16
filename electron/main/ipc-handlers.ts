@@ -520,6 +520,11 @@ export function setupIpcHandlers(services: Services): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.ANDROID_RUN_APK_EMULATOR, async (_event, apkPath: string, packageName: string, proxyPort: number, analysisOutputDir?: string): Promise<void> => {
+    if (!proxyServer.isRunning()) throw new Error('Trafexia proxy is not running. Start the proxy and retry.');
+    await androidService.runApkInEmulator(apkPath, packageName, proxyPort, analysisOutputDir);
+  });
+
   ipcMain.handle(IPC_CHANNELS.ANDROID_INSTALL_MULTIPLE_APKS, async (_event, deviceId: string, apkPaths: string[]): Promise<boolean> => {
     try {
       return await androidService.installMultipleApks(deviceId, apkPaths);

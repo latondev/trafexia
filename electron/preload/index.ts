@@ -110,6 +110,8 @@ const api: IpcApi = {
   installApk: (deviceId: string, apkPath: string): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ANDROID_INSTALL_APK, deviceId, apkPath);
   },
+  runApkInEmulator: (apkPath: string, packageName: string, proxyPort: number, analysisOutputDir?: string): Promise<void> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ANDROID_RUN_APK_EMULATOR, apkPath, packageName, proxyPort, analysisOutputDir),
   installMultipleApks: (deviceId: string, apkPaths: string[]): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ANDROID_INSTALL_MULTIPLE_APKS, deviceId, apkPaths);
   },

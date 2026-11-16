@@ -48,6 +48,8 @@ const emit = defineEmits<{ (e: 'start-interception'): void }>();
 const isDragging = ref(false);
 const localFilePath = ref('');
 const localFileName = ref('');
+const isLaunchingEmulator = ref(false);
+const emulatorLaunchError = ref('');
 
 const activeTab = ref<'endpoints' | 'services' | 'permissions' | 'secrets' | 'sdks' | 'resources' | 'ai'>('endpoints');
 const searchQuery = ref('');
@@ -215,6 +217,28 @@ async function startInterception() {
 
   // 4. Notify App to switch to Traffic view
   emit('start-interception');
+}
+
+async function runInEmulator() {
+  if (!apkStore.result || !localFilePath.value || isLaunchingEmulator.value) return;
+  emulatorLaunchError.value = '';
+  isLaunchingEmulator.value = true;
+  try {
+    if (!proxyStore.isRunning) await proxyStore.startProxy();
+    if (!proxyStore.isRunning) throw new Error(proxyStore.error || 'Could not start Trafexia proxy.');
+    await window.electronAPI.runApkInEmulator(
+      localFilePath.value,
+      apkStore.result.appInfo.package,
+      proxyStore.status?.port || 8888,
+      apkStore.result.outputDir,
+    );
+    apkStore.activeInterceptionFilter = true;
+    emit('start-interception');
+  } catch (error) {
+    emulatorLaunchError.value = error instanceof Error ? error.message : 'Could not run APK in emulator.';
+  } finally {
+    isLaunchingEmulator.value = false;
+  }
 }
 
 // Helper for dangerous permissions
@@ -552,8 +576,14 @@ function scrollChatToBottom() {
               <Play :size="14" fill="currentColor" />
               <span>{{ i18nStore.t('StartInterception') }}</span>
             </button>
+            <button class="intercept-btn flex items-center gap-2" :disabled="isLaunchingEmulator || !localFilePath" :title="localFileName" @click="runInEmulator">
+              <Loader2 v-if="isLaunchingEmulator" :size="14" class="animate-spin" />
+              <Play v-else :size="14" fill="currentColor" />
+              <span>{{ isLaunchingEmulator ? 'Starting emulator…' : 'Run in Emulator & Capture' }}</span>
+            </button>
           </div>
         </div>
+        <p v-if="emulatorLaunchError" class="text-red-400 text-xs mt-3">{{ emulatorLaunchError }}</p>
 
         <!-- Findings Panel -->
         <div class="findings-panel">

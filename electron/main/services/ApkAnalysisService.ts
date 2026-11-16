@@ -1,4 +1,4 @@
-import * as path from 'path';
+﻿import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { spawn } from 'child_process';
@@ -17,12 +17,32 @@ import type {
 export class ApkAnalysisService {
   private apktoolPath: string = 'apktool';
   private jadxPath: string = 'jadx';
+  private apktoolArgsPrefix: string[] = [];
+  private jadxArgsPrefix: string[] = [];
 
   constructor() {
     this.detectBinaries();
   }
 
   private detectBinaries() {
+    const bundledRoots = [
+      path.join(process.resourcesPath || '', 'resources', 'tools'),
+      path.resolve(process.cwd(), 'resources', 'tools'),
+      path.resolve(__dirname, '../../resources/tools'),
+    ];
+    const bundledApktool = path.join(bundledRoots.find((root) => fs.existsSync(path.join(root, 'apktool', 'apktool.jar'))) || '', 'apktool', 'apktool.jar');
+    const bundledJadx = path.join(bundledRoots.find((root) => fs.existsSync(path.join(root, 'jadx', 'lib', 'jadx-1.5.6-all.jar'))) || '', 'jadx', 'lib', 'jadx-1.5.6-all.jar');
+
+    if (process.platform === 'win32' && fs.existsSync(bundledApktool) && fs.existsSync(bundledJadx)) {
+      const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java.exe') : 'java';
+      this.apktoolPath = java;
+      this.jadxPath = java;
+      this.apktoolArgsPrefix = ['-jar', bundledApktool];
+      this.jadxArgsPrefix = ['-cp', bundledJadx, 'jadx.cli.JadxCLI'];
+      console.log('[ApkAnalysisService] Using project-bundled apktool and jadx');
+      return;
+    }
+
     const commonPaths = [
       '/opt/homebrew/bin',
       '/usr/local/bin',
@@ -68,6 +88,8 @@ export class ApkAnalysisService {
   private runProcess(cmd: string, args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
       console.log(`[ApkAnalysisService] Executing: ${cmd} ${args.join(' ')}`);
+      // Windows cannot launch .bat files directly with CreateProcess; route the bundled
+      // wrappers through cmd.exe while quoting every argument.
       const child = spawn(cmd, args);
       let stdout = '';
       let stderr = '';
@@ -138,7 +160,7 @@ export class ApkAnalysisService {
       // 2. DECOMPILING STEP
       onProgress({ step: 'decompiling', percent: 10, message: 'Decompiling Android resources with apktool...' });
       const apktoolOut = path.join(tempDir, 'apktool_out');
-      const apktoolResult = await this.runProcess(this.apktoolPath, [
+      const apktoolResult = await this.runProcess(this.apktoolPath, [...this.apktoolArgsPrefix,
         'd',
         apkPath,
         '-o',
@@ -153,7 +175,7 @@ export class ApkAnalysisService {
 
       onProgress({ step: 'decompiling', percent: 50, message: 'Decompiling Java bytecode with jadx...' });
       const jadxOut = path.join(tempDir, 'jadx_out');
-      const jadxResult = await this.runProcess(this.jadxPath, [
+      const jadxResult = await this.runProcess(this.jadxPath, [...this.jadxArgsPrefix,
         '-d',
         jadxOut,
         apkPath
@@ -271,7 +293,8 @@ export class ApkAnalysisService {
 
           const file = javaFiles[i];
           const relativePath = path.relative(sourcesDir, file);
-          const content = fs.readFileSync(file, 'utf8');
+          // Keep the Electron main event loop responsive while scanning large APKs.
+          const content = await fs.promises.readFile(file, 'utf8');
 
           // Quick SDK check from imports/paths
           for (const sdk of SDK_RULES) {
@@ -340,6 +363,11 @@ export class ApkAnalysisService {
                 });
               }
             }
+          }
+
+          // Yield periodically so window events and IPC progress updates are processed.
+          if (i % 50 === 0) {
+            await new Promise<void>((resolve) => setImmediate(resolve));
           }
         }
       } else {
@@ -684,3 +712,4 @@ export class ApkAnalysisService {
     });
   }
 }
+

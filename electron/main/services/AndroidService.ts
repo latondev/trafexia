@@ -13,13 +13,28 @@ export class AndroidService {
   private bridgedDevices = new Set<string>();
 
   constructor() {
+    const projectSdk = path.resolve(process.cwd(), 'android-sdk');
+    const packagedSdk = path.resolve(__dirname, '../../android-sdk');
+    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
+    const sdkRoot = [projectSdk, packagedSdk, path.join(localAppData, 'Trafexia', 'android-sdk')]
+      .find((candidate) => fs.existsSync(path.join(candidate, 'platform-tools', 'adb.exe')));
+    if (sdkRoot) {
+      process.env.ANDROID_HOME = sdkRoot;
+      process.env.ANDROID_SDK_ROOT = sdkRoot;
+      process.env.ANDROID_AVD_HOME = path.join(sdkRoot, 'avd');
+    }
     this.detectAdb();
     this.detectEmulator();
   }
 
   private detectAdb() {
     const home = os.homedir();
+    const localAppData = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
     const commonPaths = [
+      path.resolve(process.cwd(), 'android-sdk', 'platform-tools', 'adb.exe'),
+      path.resolve(__dirname, '../../android-sdk/platform-tools/adb.exe'),
+      path.join(localAppData, 'Trafexia', 'android-sdk', 'platform-tools', 'adb.exe'),
+      path.join(localAppData, 'Android', 'Sdk', 'platform-tools', 'adb.exe'),
       path.join(home, 'Library/Android/sdk/platform-tools/adb'),
       path.join(home, 'Android/Sdk/platform-tools/adb'),
       '/usr/local/bin/adb',
@@ -38,7 +53,12 @@ export class AndroidService {
 
   private detectEmulator() {
     const home = os.homedir();
+    const localAppData = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
     const commonPaths = [
+      path.resolve(process.cwd(), 'android-sdk', 'emulator', 'emulator.exe'),
+      path.resolve(__dirname, '../../android-sdk/emulator/emulator.exe'),
+      path.join(localAppData, 'Trafexia', 'android-sdk', 'emulator', 'emulator.exe'),
+      path.join(localAppData, 'Android', 'Sdk', 'emulator', 'emulator.exe'),
       path.join(home, 'Library/Android/sdk/emulator/emulator'),
       path.join(home, 'Android/Sdk/emulator/emulator'),
     ];
@@ -57,7 +77,7 @@ export class AndroidService {
    */
   async listAvds(): Promise<string[]> {
     try {
-      const { stdout } = await execAsync(`${this.emulatorPath} -list-avds`);
+      const { stdout } = await execAsync(`"${this.emulatorPath}" -list-avds`);
       return stdout.trim().split('\n').filter(line => line.trim());
     } catch (error) {
       console.error('[AndroidService] Failed to list AVDs:', error);
@@ -82,6 +102,51 @@ export class AndroidService {
       console.error(`[AndroidService] Failed to launch AVD ${name}:`, error);
       return false;
     }
+  }
+
+  async runApkInEmulator(sourcePath: string, packageName: string, proxyPort: number, analysisOutputDir?: string): Promise<void> {
+    let apkPath = sourcePath;
+    if (path.extname(sourcePath).toLowerCase() === '.xapk') {
+      apkPath = path.join(analysisOutputDir || '', 'base.apk');
+    }
+    if (!fs.existsSync(apkPath)) throw new Error('The selected APK is missing. Clear the scan, select the APK again, and retry.');
+    if (!packageName || packageName === 'Unknown') throw new Error('APK package name was not detected.');
+    const avds = await this.listAvds();
+    if (avds.length === 0) throw new Error('No AVD found. Run scripts/setup-android-emulator.ps1 first.');
+
+    let deviceId = '';
+    const findEmulator = async () => {
+      const { stdout } = await execAsync(`"${this.adbPath}" devices`);
+      return stdout.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
+        .find((parts) => parts[0]?.startsWith('emulator-') && parts[1] === 'device')?.[0] || '';
+    };
+    deviceId = await findEmulator();
+    if (!deviceId) {
+      if (!await this.launchAvd(avds[0])) throw new Error('Could not start the Android emulator.');
+      const deadline = Date.now() + 180_000;
+      while (!deviceId && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        deviceId = await findEmulator();
+      }
+      if (!deviceId) throw new Error('Emulator did not connect to ADB within 3 minutes.');
+    }
+
+    const adb = `"${this.adbPath}" -s ${deviceId}`;
+    await execAsync(`${adb} wait-for-device`, { timeout: 180_000 });
+    const bootDeadline = Date.now() + 180_000;
+    let booted = false;
+    while (!booted && Date.now() < bootDeadline) {
+      try {
+        const { stdout } = await execAsync(`${adb} shell getprop sys.boot_completed`, { timeout: 10_000 });
+        booted = stdout.trim() === '1';
+      } catch { /* keep waiting while Android boots */ }
+      if (!booted) await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+    if (!booted) throw new Error('Android did not finish booting within 3 minutes.');
+
+    await execAsync(`${adb} shell settings put global http_proxy 10.0.2.2:${proxyPort}`, { timeout: 15_000 });
+    await execAsync(`${adb} install -r -d -t -g "${apkPath}"`, { timeout: 180_000, maxBuffer: 8 * 1024 * 1024 });
+    await execAsync(`${adb} shell monkey -p ${packageName} 1`, { timeout: 30_000 });
   }
 
   /**
@@ -153,8 +218,11 @@ export class AndroidService {
    */
   async bridgeDevice(deviceId: string, proxyUrl: string): Promise<boolean> {
     try {
-      console.log(`[AndroidService] Configuring proxy ${proxyUrl} on device ${deviceId}`);
-      await execAsync(`${this.adbPath} -s ${deviceId} shell settings put global http_proxy ${proxyUrl}`);
+      const deviceProxy = deviceId.startsWith('emulator-')
+        ? `10.0.2.2:${proxyUrl.split(':').pop()}`
+        : proxyUrl;
+      console.log(`[AndroidService] Configuring proxy ${deviceProxy} on device ${deviceId}`);
+      await execAsync(`"${this.adbPath}" -s ${deviceId} shell settings put global http_proxy ${deviceProxy}`);
       this.bridgedDevices.add(deviceId);
       return true;
     } catch (error) {
