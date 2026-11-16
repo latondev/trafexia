@@ -17,6 +17,8 @@ import {
   GitCompare,
   Map,
   Coffee,
+  Smartphone,
+  Loader2,
 } from "lucide-vue-next";
 import { useToast } from "primevue/usetoast";
 
@@ -51,6 +53,12 @@ const settingsStore = useSettingsStore();
 const licenseStore = useLicenseStore();
 const i18nStore = useI18nStore();
 const toast = useToast();
+const isOpeningEmulator = ref(false);
+const showEmulatorApps = ref(false);
+const emulatorApps = ref<string[]>([]);
+const emulatorDeviceId = ref('');
+const loadingEmulatorApps = ref(false);
+const launchingPackage = ref('');
 
 const showLangDropdown = ref(false);
 const langDropdownRef = ref<HTMLElement | null>(null);
@@ -106,6 +114,45 @@ function handleRequestCaptured(request: any) {
 
 function handleProxyError(error: string) {
   console.error("[App] Proxy error:", error);
+}
+
+async function openEmulator() {
+  if (isOpeningEmulator.value) return;
+  isOpeningEmulator.value = true;
+  try {
+    if (!proxyStore.isRunning) await proxyStore.startProxy();
+    if (!proxyStore.isRunning) throw new Error(proxyStore.error || 'Could not start the proxy.');
+    await window.electronAPI.launchEmulator(proxyStore.status?.port || 8888);
+    loadingEmulatorApps.value = true;
+    const devices = await window.electronAPI.getAndroidDevices();
+    const emulator = devices.find((device) => device.type === 'emulator' && device.status === 'device');
+    if (!emulator) throw new Error('Emulator is running but ADB has not connected yet. Try again in a few seconds.');
+    emulatorDeviceId.value = emulator.id;
+    emulatorApps.value = await window.electronAPI.getInstalledAndroidApps(emulator.id);
+    showEmulatorApps.value = true;
+    if (emulatorApps.value.length === 0) {
+      toast.add({ severity: 'info', summary: 'No apps installed', detail: 'Scan an APK and use Run in Emulator & Capture to install it first.', life: 5000 });
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Emulator Failed', detail: error instanceof Error ? error.message : 'Could not open the Android emulator.', life: 5000 });
+  } finally {
+    isOpeningEmulator.value = false;
+    loadingEmulatorApps.value = false;
+  }
+}
+
+async function launchEmulatorApp(packageName: string) {
+  if (launchingPackage.value) return;
+  launchingPackage.value = packageName;
+  try {
+    await window.electronAPI.launchAndroidApp(emulatorDeviceId.value, packageName);
+    showEmulatorApps.value = false;
+    toast.add({ severity: 'success', summary: 'App launched', detail: packageName, life: 3000 });
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Could not launch app', detail: error instanceof Error ? error.message : packageName, life: 5000 });
+  } finally {
+    launchingPackage.value = '';
+  }
 }
 
 // Lifecycle
@@ -203,6 +250,20 @@ function exportPostman() {
     <!-- Global Components -->
     <Toast position="bottom-right" />
     <ConfirmDialog />
+    <Dialog v-model:visible="showEmulatorApps" modal header="Choose an installed Android app" :style="{ width: 'min(520px, 90vw)' }">
+      <div v-if="loadingEmulatorApps" class="text-sm text-slate-400 py-5">Loading apps…</div>
+      <div v-else-if="emulatorApps.length === 0" class="text-sm text-slate-400 py-5">
+        No third-party apps are installed yet. Go to APK Scan and use <strong>Run in Emulator & Capture</strong> to install one.
+      </div>
+      <div v-else class="max-h-[55vh] overflow-y-auto flex flex-col gap-2">
+        <button v-for="packageName in emulatorApps" :key="packageName"
+          class="w-full text-left rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 px-4 py-3 text-slate-200 text-sm disabled:opacity-50"
+          :disabled="!!launchingPackage" @click="launchEmulatorApp(packageName)">
+          <span>{{ packageName }}</span>
+          <span v-if="launchingPackage === packageName" class="ml-2 text-sky-300">Opening…</span>
+        </button>
+      </div>
+    </Dialog>
 
     <header class="app-header">
       <!-- Left: Spacing for macOS Traffic Light controls -->
@@ -219,6 +280,11 @@ function exportPostman() {
       <div class="header-right">
         <!-- Tools Group -->
         <div class="action-group">
+          <button class="emulator-launch-btn" :disabled="isOpeningEmulator" @click="openEmulator" title="Open Android emulator with Trafexia proxy">
+            <Loader2 v-if="isOpeningEmulator" :size="14" class="animate-spin" />
+            <Smartphone v-else :size="14" />
+            <span>Emulator</span>
+          </button>
           <button class="icon-btn"
             @click="licenseStore.guardFeature('request-composer') && (showComposer = true)"
             :title="'Composer' + (!licenseStore.hasFeature('request-composer') ? ' (Locked)' : '')"
@@ -266,11 +332,13 @@ function exportPostman() {
             :class="{ locked: !licenseStore.hasFeature('qr-code') }">
             <QrCode :size="14" />
           </button>
-          <button class="icon-btn"
+          <button class="clear-traffic-btn"
             @click="licenseStore.guardFeature('clear-requests') && clearRequests()"
-            :title="i18nStore.t('Clear')"
-            :class="{ locked: !licenseStore.hasFeature('clear-requests') }">
+            :title="i18nStore.t('Clear') + ' captured traffic'"
+            :class="{ locked: !licenseStore.hasFeature('clear-requests') }"
+            :disabled="trafficStore.requests.length === 0">
             <Trash2 :size="14" />
+            <span>Clear Traffic</span>
           </button>
           <button class="icon-btn"
             :class="{ active: showFilters, locked: !licenseStore.hasFeature('filter-requests') }"
@@ -641,6 +709,43 @@ function exportPostman() {
   transition: all 0.2s;
   -webkit-app-region: no-drag;
 }
+
+.clear-traffic-btn {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid rgba(248, 81, 73, 0.22);
+  color: #f87171;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.emulator-launch-btn {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #7dd3fc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.emulator-launch-btn:disabled { opacity: 0.5; cursor: wait; }
+.clear-traffic-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.clear-traffic-btn:hover:not(:disabled) { background: rgba(248, 81, 73, 0.16); }
+.clear-traffic-btn.locked { opacity: 0.4; cursor: not-allowed; }
 
 .icon-btn.locked {
   opacity: 0.4;
@@ -1124,6 +1229,8 @@ function exportPostman() {
   .license-badge-premium span { display: none; }
   .license-badge-premium { padding: 4px 6px; }
   .icon-btn, .view-btn { width: 26px; height: 26px; }
+  .clear-traffic-btn { height: 26px; padding: 0 6px; font-size: 9px; }
+  .emulator-launch-btn { height: 26px; padding: 0 6px; font-size: 9px; }
   .filter-sidebar { width: 260px; }
 }
 
@@ -1133,6 +1240,8 @@ function exportPostman() {
   .header-right { gap: 2px; }
   .action-group { border: none; background: none; padding: 0; gap: 1px; }
   .icon-btn, .view-btn { width: 24px; height: 24px; }
+  .clear-traffic-btn { height: 24px; padding: 0 5px; font-size: 8px; }
+  .emulator-launch-btn { height: 24px; padding: 0 5px; font-size: 8px; }
   .throttle-floating { width: calc(100vw - 32px); right: 16px; }
   .filter-sidebar { width: 100%; max-width: 100vw; position: absolute; z-index: 50; left: 0; top: 0; bottom: 0; }
   /* Hide tools group on very small screens, keep utility */

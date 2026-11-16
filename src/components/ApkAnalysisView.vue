@@ -540,10 +540,17 @@ function scrollChatToBottom() {
       </div>
 
       <!-- 3. Results Panel (Completed state) -->
-      <div v-else-if="apkStore.result" class="results-layout">
+      <div v-else-if="apkStore.result" class="results-layout"
+        @dragover.prevent="isDragging = true"
+        @dragleave="isDragging = false"
+        @drop.prevent="handleDrop">
         <!-- App info card -->
         <div class="app-info-card">
           <div class="app-meta">
+            <div class="meta-item">
+              <span class="label">SCANNED FILE</span>
+              <span class="value select-all">{{ localFileName || 'Unknown file' }}</span>
+            </div>
             <div class="meta-item">
               <span class="label">{{ i18nStore.t('PackageName') }}</span>
               <span class="value select-all">{{ apkStore.result.appInfo.package }}</span>
@@ -559,6 +566,10 @@ function scrollChatToBottom() {
           </div>
 
           <div class="flex items-center gap-3">
+            <button class="folder-btn flex items-center gap-1.5" @click="selectFile" :disabled="isLaunchingEmulator">
+              <Upload :size="13" />
+              <span>Replace APK</span>
+            </button>
             <!-- Folder Actions -->
             <div class="folder-actions flex items-center gap-2">
               <button class="folder-btn flex items-center gap-1.5" @click="openDecompileFolder" title="Open decompiled files in Finder/Explorer">

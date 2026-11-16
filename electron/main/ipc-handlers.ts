@@ -384,56 +384,9 @@ export function setupIpcHandlers(services: Services): void {
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.LAUNCH_EMULATOR, async (): Promise<boolean> => {
-    const { spawn } = await import('child_process');
-    const settings = loadSettings(trafficStorage);
-    const localIp = getLocalIp();
-    const proxyUrl = `${localIp}:${settings.proxyPort}`;
-
+  ipcMain.handle(IPC_CHANNELS.LAUNCH_EMULATOR, async (_event, proxyPort?: number): Promise<boolean> => {
     try {
-      // Launch emulator
-      // First, check if any emulator is running
-      // If not, start the default emulator
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(exec);
-
-      // Check for running emulators
-      const { stdout: devicesOutput } = await execAsync('adb devices');
-      const hasRunningEmulator = devicesOutput.includes('emulator-');
-
-      if (!hasRunningEmulator) {
-        // Get list of available AVDs
-        const { stdout: avdOutput } = await execAsync('emulator -list-avds');
-        const avds = avdOutput.trim().split('\n').filter(line => line.trim());
-
-        if (avds.length === 0) {
-          throw new Error('No Android Virtual Devices found. Please create one using Android Studio.');
-        }
-
-        // Launch the first available AVD
-        const avdName = avds[0];
-        console.log(`[IPC] Launching emulator: ${avdName}`);
-
-        spawn('emulator', [`@${avdName}`], {
-          detached: true,
-          stdio: 'ignore',
-        }).unref();
-
-        // Wait a bit for emulator to start
-        console.log('[IPC] Waiting for emulator to start...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
-
-      // Wait for device to be ready
-      console.log('[IPC] Waiting for device to be ready...');
-      await execAsync('adb wait-for-device');
-
-      // Configure proxy
-      console.log(`[IPC] Configuring proxy: ${proxyUrl}`);
-      await execAsync(`adb shell settings put global http_proxy ${proxyUrl}`);
-
-      console.log('[IPC] Android emulator launched and configured successfully');
+      await androidService.launchDefaultEmulatorForCapture(proxyPort || DEFAULT_SETTINGS.proxyPort);
       return true;
     } catch (error) {
       console.error('[IPC] Failed to launch emulator:', error);
@@ -470,6 +423,12 @@ export function setupIpcHandlers(services: Services): void {
       throw error;
     }
   });
+
+  ipcMain.handle(IPC_CHANNELS.ANDROID_GET_INSTALLED_APPS, async (_event, deviceId: string): Promise<string[]> =>
+    androidService.getInstalledApps(deviceId));
+
+  ipcMain.handle(IPC_CHANNELS.ANDROID_LAUNCH_APP, async (_event, deviceId: string, packageName: string): Promise<boolean> =>
+    androidService.launchInstalledApp(deviceId, packageName));
 
   ipcMain.handle(IPC_CHANNELS.ANDROID_BRIDGE_DEVICE, async (_event, deviceId: string): Promise<boolean> => {
     try {

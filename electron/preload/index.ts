@@ -86,8 +86,8 @@ const api: IpcApi = {
   launchBrowser: (browser: 'chrome' | 'firefox' | 'edge'): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_BROWSER, browser);
   },
-  launchEmulator: (): Promise<boolean> => {
-    return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_EMULATOR);
+  launchEmulator: (proxyPort?: number): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_EMULATOR, proxyPort);
   },
   launchSimulator: (): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_SIMULATOR);
@@ -95,6 +95,10 @@ const api: IpcApi = {
   getAndroidDevices: (): Promise<AndroidDevice[]> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ANDROID_GET_DEVICES);
   },
+  getInstalledAndroidApps: (deviceId: string): Promise<string[]> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ANDROID_GET_INSTALLED_APPS, deviceId),
+  launchAndroidApp: (deviceId: string, packageName: string): Promise<boolean> =>
+    ipcRenderer.invoke(IPC_CHANNELS.ANDROID_LAUNCH_APP, deviceId, packageName),
   bridgeAndroidDevice: (deviceId: string): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.ANDROID_BRIDGE_DEVICE, deviceId);
   },

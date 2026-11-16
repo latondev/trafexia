@@ -45,6 +45,13 @@ export default defineConfig({
       '@electron': resolve(__dirname, 'electron')
     }
   },
+  server: {
+    watch: {
+      // SDK images, AVD state and the optional uv-managed Python installation
+      // are generated under the project folder and must not trigger HMR reloads.
+      ignored: ['**/android-sdk/**']
+    }
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true

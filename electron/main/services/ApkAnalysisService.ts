@@ -127,6 +127,12 @@ export class ApkAnalysisService {
       const ext = path.extname(filePath).toLowerCase();
       let apkPath = filePath;
 
+      if (ext === '.apk') {
+        // Preserve the exact analyzed APK so the emulator action still works if the
+        // original download is moved or deleted after scanning.
+        await fs.promises.copyFile(filePath, path.join(tempDir, 'source.apk'));
+      }
+
       // 1. EXTRACTION STEP
       onProgress({ step: 'extracting', percent: 10, message: 'Preparing file for analysis...' });
       if (ext === '.xapk' || ext === '.zip') {

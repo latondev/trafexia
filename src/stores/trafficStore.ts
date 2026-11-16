@@ -289,6 +289,11 @@ export const useTrafficStore = defineStore('traffic', () => {
 
   async function clearAll() {
     try {
+      pendingRequests = [];
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+        updateTimeout = null;
+      }
       await window.electronAPI.clearRequests();
       requests.value = [];
       selectedRequest.value = null;

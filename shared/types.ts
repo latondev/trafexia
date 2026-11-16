@@ -269,6 +269,8 @@ export const IPC_CHANNELS = {
   LAUNCH_EMULATOR: "app:launch-emulator",
   LAUNCH_SIMULATOR: "app:launch-simulator",
   ANDROID_GET_DEVICES: "android:get-devices",
+  ANDROID_GET_INSTALLED_APPS: "android:get-installed-apps",
+  ANDROID_LAUNCH_APP: "android:launch-app",
   ANDROID_BRIDGE_DEVICE: "android:bridge-device",
   ANDROID_CLEAR_PROXY: "android:clear-proxy",
   ANDROID_GET_AVDS: "android:get-avds",
@@ -589,9 +591,11 @@ export interface IpcApi {
 
   // Browser/Emulator
   launchBrowser: (browser: "chrome" | "firefox" | "edge") => Promise<boolean>;
-  launchEmulator: () => Promise<boolean>;
+  launchEmulator: (proxyPort?: number) => Promise<boolean>;
   launchSimulator: () => Promise<boolean>;
   getAndroidDevices: () => Promise<AndroidDevice[]>;
+  getInstalledAndroidApps: (deviceId: string) => Promise<string[]>;
+  launchAndroidApp: (deviceId: string, packageName: string) => Promise<boolean>;
   bridgeAndroidDevice: (deviceId: string) => Promise<boolean>;
   clearAndroidProxy: (deviceId: string) => Promise<boolean>;
   getAndroidAvds: () => Promise<string[]>;
