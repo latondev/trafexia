@@ -1,5 +1,6 @@
 node_modules
 android-sdk/
+resources/tools/mitmproxy/
 dist
 dist-electron
 release

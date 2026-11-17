@@ -11,6 +11,7 @@ import { LicenseService } from './services/LicenseService';
 import { MapService } from './services/MapService';
 import { ThrottleService } from './services/ThrottleService';
 import { AndroidService } from './services/AndroidService';
+import { WindowsCaptureService } from './services/WindowsCaptureService';
 import { IosService } from './services/IosService';
 import { ApkSignerService } from './services/ApkSignerService';
 import { FridaManager } from './services/FridaManager';
@@ -34,6 +35,7 @@ let licenseService: LicenseService;
 let mapService: MapService;
 let throttleService: ThrottleService;
 let androidService: AndroidService;
+let windowsCaptureService: WindowsCaptureService;
 let iosService: IosService;
 let apkSignerService: ApkSignerService;
 let fridaManager: FridaManager;
@@ -129,6 +131,13 @@ const initializeServices = async () => {
   mapService = new MapService(trafficStorage);
   throttleService = new ThrottleService(trafficStorage);
   androidService = new AndroidService();
+  windowsCaptureService = new WindowsCaptureService();
+  windowsCaptureService.on('request', (record) => {
+    try {
+      const id = trafficStorage.saveRequest(record);
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('request:captured', { ...record, id });
+    } catch (error) { console.error('[WindowsCapture] Could not save request:', error); }
+  });
   iosService = new IosService();
   apkSignerService = new ApkSignerService();
   fridaManager = new FridaManager();
@@ -204,6 +213,7 @@ const initializeServices = async () => {
     mapService,
     throttleService,
     androidService,
+    windowsCaptureService,
     iosService,
     apkSignerService,
     fridaManager,
@@ -239,11 +249,19 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Cleanup on quit
-app.on('before-quit', async () => {
+// Await capture cleanup before Electron exits so the packet redirector is
+// stopped before the database and UI disappear.
+let quitCleanupStarted = false;
+let quitCleanupDone = false;
+app.on('before-quit', async (event) => {
+  if (quitCleanupDone) return;
+  event.preventDefault();
+  if (quitCleanupStarted) return;
+  quitCleanupStarted = true;
   console.log('[Main] Cleaning up before quit...');
 
   try {
+    await windowsCaptureService?.stop();
     // Clear Android proxies synchronously before quit
     if (androidService) {
       androidService.clearAllProxiesSync();
@@ -278,6 +296,9 @@ app.on('before-quit', async () => {
     cleanupFridaProcess();
   } catch (error) {
     console.error('[Main] Cleanup error:', error);
+  } finally {
+    quitCleanupDone = true;
+    app.quit();
   }
 });
 

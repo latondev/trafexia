@@ -45,6 +45,7 @@ import ThrottleControl from "@/components/ThrottleControl.vue";
 import DiffViewer from "@/components/DiffViewer.vue";
 import MapRulesManager from "@/components/MapRulesManager.vue";
 import ApkAnalysisView from "@/components/ApkAnalysisView.vue";
+import WindowsCaptureDialog from "@/components/WindowsCaptureDialog.vue";
 import { Terminal, Activity, Crown } from "lucide-vue-next";
 
 const trafficStore = useTrafficStore();
@@ -54,6 +55,8 @@ const licenseStore = useLicenseStore();
 const i18nStore = useI18nStore();
 const toast = useToast();
 const isOpeningEmulator = ref(false);
+const showWindowsCapture = ref(false);
+const windowsCapturing = ref(false);
 const showEmulatorApps = ref(false);
 const emulatorApps = ref<string[]>([]);
 const emulatorDeviceId = ref('');
@@ -122,10 +125,10 @@ async function openEmulator() {
   try {
     if (!proxyStore.isRunning) await proxyStore.startProxy();
     if (!proxyStore.isRunning) throw new Error(proxyStore.error || 'Could not start the proxy.');
-    await window.electronAPI.launchEmulator(proxyStore.status?.port || 8888);
+    const deviceId = await window.electronAPI.launchEmulator(proxyStore.status?.port || 8888);
     loadingEmulatorApps.value = true;
     const devices = await window.electronAPI.getAndroidDevices();
-    const emulator = devices.find((device) => device.type === 'emulator' && device.status === 'device');
+    const emulator = devices.find((device) => device.id === deviceId && device.status === 'device');
     if (!emulator) throw new Error('Emulator is running but ADB has not connected yet. Try again in a few seconds.');
     emulatorDeviceId.value = emulator.id;
     emulatorApps.value = await window.electronAPI.getInstalledAndroidApps(emulator.id);
@@ -250,6 +253,7 @@ function exportPostman() {
     <!-- Global Components -->
     <Toast position="bottom-right" />
     <ConfirmDialog />
+    <WindowsCaptureDialog v-model:visible="showWindowsCapture" @running="windowsCapturing = $event" />
     <Dialog v-model:visible="showEmulatorApps" modal header="Choose an installed Android app" :style="{ width: 'min(520px, 90vw)' }">
       <div v-if="loadingEmulatorApps" class="text-sm text-slate-400 py-5">Loading apps…</div>
       <div v-else-if="emulatorApps.length === 0" class="text-sm text-slate-400 py-5">
@@ -280,6 +284,10 @@ function exportPostman() {
       <div class="header-right">
         <!-- Tools Group -->
         <div class="action-group">
+          <button class="emulator-launch-btn" @click="showWindowsCapture = true" title="Choose Windows processes to capture HTTP and HTTPS traffic">
+            <Activity :size="14" />
+            <span>{{ windowsCapturing ? 'Windows • Capturing' : 'Windows Apps' }}</span>
+          </button>
           <button class="emulator-launch-btn" :disabled="isOpeningEmulator" @click="openEmulator" title="Open Android emulator with Trafexia proxy">
             <Loader2 v-if="isOpeningEmulator" :size="14" class="animate-spin" />
             <Smartphone v-else :size="14" />

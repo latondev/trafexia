@@ -110,17 +110,36 @@ export class AndroidService {
   /**
    * Launch a specific AVD
    */
+  private isArm64Avd(name: string): boolean {
+    const avdHome = process.env.ANDROID_AVD_HOME || path.join(os.homedir(), '.android', 'avd');
+    const iniPath = path.join(avdHome, `${name.trim()}.ini`);
+    const ini = fs.existsSync(iniPath) ? fs.readFileSync(iniPath, 'utf8') : '';
+    const avdDir = ini.match(/^path=(.+)$/m)?.[1].trim() || path.join(avdHome, `${name.trim()}.avd`);
+    const configPath = path.join(avdDir, 'config.ini');
+    if (fs.existsSync(configPath)) {
+      return /^(?:abi\.type\s*=\s*arm64-v8a|hw\.cpu\.arch\s*=\s*arm64)\s*$/m.test(fs.readFileSync(configPath, 'utf8'));
+    }
+    return /arm64/i.test(name);
+  }
+
+  private selectHostAvd(avds: string[]): string {
+    const compatible = avds.filter((name) => this.isArm64Avd(name) === (process.arch === 'arm64'));
+    const selected = compatible.find((name) => name === 'Trafexia_Compat_API_30') || compatible[0];
+    if (!selected) throw new Error(`No AVD compatible with this ${process.arch} computer. ARM64 Android images cannot run with the bundled emulator on an x86_64 PC. Run scripts/setup-android-emulator.ps1 to install an x86_64 AVD.`);
+    return selected;
+  }
+
   async launchAvd(name: string): Promise<boolean> {
     const { spawn } = await import('child_process');
     try {
       console.log(`[AndroidService] Launching AVD: ${name}`);
-      const isArm64SoftwareAvd = name.includes('ARM64');
-      // The generated AVD defaults to a 10 GB data partition, which can make
-      // the emulator refuse to start when the SDK drive is short on free space.
-      // Emulator 37 accepts partition sizes only up to 2047 MB. Keep the
-      // writable data partition small and skip potentially stale snapshots.
-      const args = [`@${name}`, '-no-snapshot', '-partition-size', '2047'];
-      if (isArm64SoftwareAvd) args.push('-accel', 'off');
+      name = name.trim();
+      if (this.isArm64Avd(name) && process.arch !== 'arm64') {
+        throw new Error('The bundled Android emulator cannot boot an ARM64 image on this x86_64 PC. Use an x86_64 image with ARM translation or connect a compatible ARM64 Android device.');
+      }
+      // Data storage is configured in config.ini. -partition-size changes the
+      // system partition; it must not be used to reduce writable app storage.
+      const args = [`@${name}`, '-no-snapshot'];
       const sdkRoot = this.sdkRoot || process.cwd();
       const tempRoot = path.join(sdkRoot, 'temp');
       const androidUserHome = path.join(sdkRoot, 'user-home');
@@ -140,7 +159,6 @@ export class AndroidService {
           TEMP: tempRoot,
           TMP: tempRoot,
           TMPDIR: tempRoot,
-          ...(isArm64SoftwareAvd ? { ANDROID_I_WANT_MY_TCG: 'yes' } : {}),
         },
       });
       try {
@@ -160,17 +178,22 @@ export class AndroidService {
     }
   }
 
-  async launchDefaultEmulatorForCapture(proxyPort: number): Promise<void> {
+  async launchDefaultEmulatorForCapture(proxyPort: number): Promise<string> {
     const avds = await this.listAvds();
     if (avds.length === 0) throw new Error('No Android AVD found. Run an emulator setup script first.');
-    // The standalone Emulator button should choose the accelerated host-matching AVD.
-    // ARM64 AVDs on x86_64 hosts use software emulation and are only selected for ARM-only APKs.
-    const preferredAvd = avds.find((name) => !name.includes('ARM64')) || avds[0];
+    const preferredAvd = this.selectHostAvd(avds);
 
     const findRunningEmulator = async () => {
       const { stdout } = await execAsync(`"${this.adbPath}" devices`);
-      return stdout.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
-        .find((parts) => parts[0]?.startsWith('emulator-') && parts[1] === 'device')?.[0] || '';
+      const ids = stdout.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
+        .filter((parts) => parts[0]?.startsWith('emulator-') && parts[1] === 'device').map((parts) => parts[0]);
+      for (const id of ids) {
+        try {
+          const { stdout: name } = await execAsync(`${this.adbCommand} -s ${id} emu avd name`, { timeout: 5000 });
+          if (name.split(/\r?\n/)[0].trim() === preferredAvd) return id;
+        } catch { /* ignore another AVD or a device still starting */ }
+      }
+      return '';
     };
     let deviceId = await findRunningEmulator();
     if (!deviceId) {
@@ -196,6 +219,8 @@ export class AndroidService {
     }
     if (!booted) throw new Error('Android did not finish booting.');
     await execAsync(`${adb} shell settings put global http_proxy 10.0.2.2:${proxyPort}`, { timeout: 15_000 });
+    this.bridgedDevices.add(deviceId);
+    return deviceId;
   }
 
   async runApkInEmulator(sourcePath: string, packageName: string, proxyPort: number, analysisOutputDir?: string): Promise<void> {
@@ -220,60 +245,14 @@ export class AndroidService {
     }
     if (!fs.existsSync(apkPath)) throw new Error('The selected APK is missing. Clear the scan, select the APK again, and retry.');
     if (!packageName || packageName === 'Unknown') throw new Error('APK package name was not detected.');
-    const avds = await this.listAvds();
-    if (avds.length === 0) throw new Error('No AVD found. Run scripts/setup-android-emulator.ps1 first.');
-    const needsArm64 = splitApks.some((apk) => path.basename(apk).toLowerCase().includes('arm64_v8a'));
-    const avdName = needsArm64 ? avds.find((name) => name.includes('ARM64')) : avds.find((name) => !name.includes('ARM64'));
-    if (needsArm64 && !avdName) {
-      throw new Error('This XAPK only includes ARM64 native libraries. Run scripts/setup-android-arm64-emulator.ps1, then retry.');
-    }
-    const selectedAvd = avdName || avds[0];
-
-    let deviceId = '';
-    const findEmulator = async () => {
-      const { stdout } = await execAsync(`"${this.adbPath}" devices`);
-      const ids = stdout.split(/\r?\n/).map((line) => line.trim().split(/\s+/))
-        .filter((parts) => parts[0]?.startsWith('emulator-') && parts[1] === 'device').map((parts) => parts[0]);
-      for (const id of ids) {
-        if (!needsArm64) return id;
-        try {
-          const { stdout: abi } = await execAsync(`"${this.adbPath}" -s ${id} shell getprop ro.product.cpu.abi`, { timeout: 5_000 });
-          if (abi.trim().startsWith('arm64')) return id;
-        } catch { /* ignore devices that are still booting */ }
-      }
-      return '';
-    };
-    deviceId = await findEmulator();
-    if (!deviceId) {
-      if (!await this.launchAvd(selectedAvd)) throw new Error('Could not start the Android emulator.');
-      const deadline = Date.now() + (needsArm64 ? 600_000 : 300_000);
-      while (!deviceId && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        deviceId = await findEmulator();
-      }
-      if (!deviceId) throw new Error(`Matching ${needsArm64 ? 'ARM64 ' : ''}emulator did not connect to ADB in time.`);
-    }
-
+    const deviceId = await this.launchDefaultEmulatorForCapture(proxyPort);
     const adb = `"${this.adbPath}" -s ${deviceId}`;
-    await execAsync(`${adb} wait-for-device`, { timeout: 180_000 });
-    const bootDeadline = Date.now() + (needsArm64 ? 600_000 : 300_000);
-    let booted = false;
-    while (!booted && Date.now() < bootDeadline) {
-      try {
-        const { stdout } = await execAsync(`${adb} shell getprop sys.boot_completed`, { timeout: 10_000 });
-        booted = stdout.trim() === '1';
-      } catch { /* keep waiting while Android boots */ }
-      if (!booted) await new Promise((resolve) => setTimeout(resolve, 2500));
-    }
-    if (!booted) throw new Error(`Android emulator did not finish booting within ${needsArm64 ? '10' : '3'} minutes.`);
-
-    await execAsync(`${adb} shell settings put global http_proxy 10.0.2.2:${proxyPort}`, { timeout: 15_000 });
     await execAsync(`${adb} shell am force-stop ${packageName}`, { timeout: 15_000 }).catch(() => undefined);
     const installArgs = splitApks.length > 1
       ? `install-multiple -r -d -t -g ${splitApks.map((apk) => `"${apk}"`).join(' ')}`
       : `install -r -d -t -g "${apkPath}"`;
     await execAsync(`${adb} ${installArgs}`, { timeout: 180_000, maxBuffer: 8 * 1024 * 1024 });
-    await execAsync(`${adb} shell monkey -p ${packageName} 1`, { timeout: 30_000 });
+    await this.launchInstalledApp(deviceId, packageName);
   }
 
   async getInstalledApps(deviceId: string): Promise<string[]> {
@@ -284,7 +263,39 @@ export class AndroidService {
 
   async launchInstalledApp(deviceId: string, packageName: string): Promise<boolean> {
     if (!/^([A-Za-z0-9_]+\.)*[A-Za-z0-9_]+$/.test(packageName)) throw new Error('Invalid Android package name.');
-    await execAsync(`"${this.adbPath}" -s ${deviceId} shell monkey -p ${packageName} 1`, { timeout: 30_000 });
+    const adb = `${this.adbCommand} -s ${deviceId}`;
+    // Capture only log entries produced by this launch, without clearing the
+    // device's existing logs (which may be useful for another app).
+    const { stdout: clock } = await execAsync(`${adb} shell date +%s`, { timeout: 10_000 });
+    const since = clock.trim();
+    if (!/^\d+$/.test(since)) throw new Error('Could not read Android device time.');
+    await execAsync(`${adb} shell monkey -p ${packageName} -c android.intent.category.LAUNCHER 1`, { timeout: 30_000 });
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    let running = false;
+    try {
+      const { stdout } = await execAsync(`${adb} shell pidof ${packageName}`, { timeout: 10_000 });
+      running = stdout.trim().length > 0;
+    } catch { /* pidof returns a nonzero status when the process has exited */ }
+    if (!running) {
+      const logDir = path.join(this.sdkRoot || process.cwd(), 'temp');
+      fs.mkdirSync(logDir, { recursive: true });
+      const logPath = path.join(logDir, `app-exit-${packageName}-${Date.now()}.log`);
+      const { stdout: log } = await execAsync(`${adb} logcat -b all -d -v time -T ${since}.000`, {
+        timeout: 15_000, maxBuffer: 8 * 1024 * 1024,
+      });
+      fs.writeFileSync(logPath, log, 'utf8');
+      const crashSections = log.split(/(?=\*\*\* \*\*\* \*\*\*)/)
+        .filter((section) => section.includes(`Cmdline: ${packageName}`) || section.includes(`>>> ${packageName} <<<`));
+      const crash = crashSections.join('\n');
+      let reason = /signal 11|SIGSEGV/.test(crash)
+        ? `Native SIGSEGV${crash.includes('libpairipcore.so') ? ' involving libpairipcore.so' : ''}.`
+        : 'The app exited shortly after launch.';
+      if (/Guest architecture: 'arm64'/.test(crash) && /ABI: 'x86_64'/.test(crash)) {
+        reason += ' The ARM64 app crashed under x86_64 native translation. This build requires a compatible ARM64 device/runtime or an app build compatible with this emulator.';
+      }
+      console.error(`[AndroidService] ${packageName}: ${reason} Log: ${logPath}`);
+      throw new Error(`${packageName}: ${reason} Diagnostic log: ${logPath}`);
+    }
     return true;
   }
 

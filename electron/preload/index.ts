@@ -86,9 +86,15 @@ const api: IpcApi = {
   launchBrowser: (browser: 'chrome' | 'firefox' | 'edge'): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_BROWSER, browser);
   },
-  launchEmulator: (proxyPort?: number): Promise<boolean> => {
+  launchEmulator: (proxyPort?: number): Promise<string> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_EMULATOR, proxyPort);
   },
+  getWindowsProcesses: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_PROCESSES),
+  startWindowsCapture: (pids: number[]) => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_CAPTURE_START, Array.from(pids)),
+  stopWindowsCapture: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_CAPTURE_STOP),
+  getWindowsCaptureStatus: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_CAPTURE_STATUS),
+  openWindowsCaptureCertificate: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_CAPTURE_CERT),
+  launchWindowsExecutable: () => ipcRenderer.invoke(IPC_CHANNELS.WINDOWS_LAUNCH_EXE),
   launchSimulator: (): Promise<boolean> => {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_SIMULATOR);
   },

@@ -11,6 +11,7 @@ import type { LicenseService } from './services/LicenseService';
 import type { MapService } from './services/MapService';
 import type { ThrottleService } from './services/ThrottleService';
 import type { AndroidService } from './services/AndroidService';
+import type { WindowsCaptureService } from './services/WindowsCaptureService';
 import type { IosService } from './services/IosService';
 import type { ApkSignerService } from './services/ApkSignerService';
 import type { FridaManager } from './services/FridaManager';
@@ -53,6 +54,7 @@ interface Services {
   mapService: MapService;
   throttleService: ThrottleService;
   androidService: AndroidService;
+  windowsCaptureService: WindowsCaptureService;
   iosService: IosService;
   apkSignerService: ApkSignerService;
   fridaManager: FridaManager;
@@ -63,6 +65,7 @@ interface Services {
 }
 
 export function setupIpcHandlers(services: Services): void {
+  const { windowsCaptureService } = services;
   const { certificateManager, proxyServer, trafficStorage, certServer, breakpointService, mockService, requestComposer, licenseService, mapService, throttleService, androidService, iosService, fridaManager, apkAnalysisService, aiService, bridgeService, mainWindow } = services;
 
   /**
@@ -77,6 +80,26 @@ export function setupIpcHandlers(services: Services): void {
   }
 
   // ===== Proxy Control =====
+
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_PROCESSES, () => windowsCaptureService.listProcesses());
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_CAPTURE_START, (_event, pids: number[]) => windowsCaptureService.start(pids));
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_CAPTURE_STOP, () => windowsCaptureService.stop());
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_CAPTURE_STATUS, () => windowsCaptureService.getStatus());
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_CAPTURE_CERT, async () => {
+    const cert = windowsCaptureService.getStatus().certificatePath;
+    if (!cert) throw new Error('Start Windows capture once to generate its certificate first.');
+    const error = await shell.openPath(cert);
+    if (error) throw new Error(error);
+  });
+  ipcMain.handle(IPC_CHANNELS.WINDOWS_LAUNCH_EXE, async () => {
+    if (process.platform !== 'win32') throw new Error('This action requires Windows.');
+    const result = await dialog.showOpenDialog({ title: 'Open a Windows program', properties: ['openFile'], filters: [{ name: 'Windows programs', extensions: ['exe'] }] });
+    if (result.canceled || !result.filePaths[0]) return;
+    const { spawn } = await import('child_process');
+    const child = spawn(result.filePaths[0], [], { detached: true, stdio: 'ignore', windowsHide: false });
+    await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
+    child.unref();
+  });
 
   ipcMain.handle(IPC_CHANNELS.PROXY_START, async (_event, config: ProxyConfig): Promise<ProxyStatus> => {
     try {
@@ -384,10 +407,9 @@ export function setupIpcHandlers(services: Services): void {
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.LAUNCH_EMULATOR, async (_event, proxyPort?: number): Promise<boolean> => {
+  ipcMain.handle(IPC_CHANNELS.LAUNCH_EMULATOR, async (_event, proxyPort?: number): Promise<string> => {
     try {
-      await androidService.launchDefaultEmulatorForCapture(proxyPort || DEFAULT_SETTINGS.proxyPort);
-      return true;
+      return await androidService.launchDefaultEmulatorForCapture(proxyPort || DEFAULT_SETTINGS.proxyPort);
     } catch (error) {
       console.error('[IPC] Failed to launch emulator:', error);
       throw error;

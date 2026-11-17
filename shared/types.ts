@@ -31,6 +31,26 @@ export interface CapturedRequest {
   size: number;
 }
 
+export interface WindowsProcess {
+  pid: number;
+  parentPid?: number;
+  name: string;
+  executablePath: string | null;
+  title: string;
+}
+
+export interface WindowsCaptureStatus {
+  available: boolean;
+  running: boolean;
+  starting: boolean;
+  pids: number[];
+  error: string | null;
+  certificatePath: string | null;
+  capturedRequests?: number;
+  tlsFailures?: number;
+  warning?: string | null;
+}
+
 // ===== Database Row (raw from SQLite) =====
 export interface RequestDbRow {
   id: number;
@@ -267,6 +287,12 @@ export const IPC_CHANNELS = {
   // Browser/Emulator
   LAUNCH_BROWSER: "app:launch-browser",
   LAUNCH_EMULATOR: "app:launch-emulator",
+  WINDOWS_PROCESSES: "windows:processes",
+  WINDOWS_CAPTURE_START: "windows:capture-start",
+  WINDOWS_CAPTURE_STOP: "windows:capture-stop",
+  WINDOWS_CAPTURE_STATUS: "windows:capture-status",
+  WINDOWS_CAPTURE_CERT: "windows:capture-cert",
+  WINDOWS_LAUNCH_EXE: "windows:launch-exe",
   LAUNCH_SIMULATOR: "app:launch-simulator",
   ANDROID_GET_DEVICES: "android:get-devices",
   ANDROID_GET_INSTALLED_APPS: "android:get-installed-apps",
@@ -591,7 +617,13 @@ export interface IpcApi {
 
   // Browser/Emulator
   launchBrowser: (browser: "chrome" | "firefox" | "edge") => Promise<boolean>;
-  launchEmulator: (proxyPort?: number) => Promise<boolean>;
+  launchEmulator: (proxyPort?: number) => Promise<string>;
+  getWindowsProcesses: () => Promise<WindowsProcess[]>;
+  startWindowsCapture: (pids: number[]) => Promise<WindowsCaptureStatus>;
+  stopWindowsCapture: () => Promise<void>;
+  getWindowsCaptureStatus: () => Promise<WindowsCaptureStatus>;
+  openWindowsCaptureCertificate: () => Promise<void>;
+  launchWindowsExecutable: () => Promise<void>;
   launchSimulator: () => Promise<boolean>;
   getAndroidDevices: () => Promise<AndroidDevice[]>;
   getInstalledAndroidApps: (deviceId: string) => Promise<string[]>;

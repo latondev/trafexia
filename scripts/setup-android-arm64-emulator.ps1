@@ -1,4 +1,7 @@
 $ErrorActionPreference = 'Stop'
+if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64' -and $env:PROCESSOR_ARCHITEW6432 -ne 'ARM64') {
+  throw 'The bundled Android Emulator cannot boot ARM64 system images on Intel/AMD x86_64 PCs. Use setup-android-emulator.ps1 for an x86_64 image with ARM translation. ARM64 app compatibility must be checked per app; downloading an ARM64 image will not fix native crashes.'
+}
 $sdkRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\android-sdk'))
 $avdRoot = Join-Path $sdkRoot 'avd'
 $userHome = Join-Path $sdkRoot 'user-home'
@@ -13,7 +16,7 @@ if (-not (Test-Path $sdkManager) -or -not (Test-Path $avdManager)) {
 }
 
 Write-Host 'This adds an ARM64 Android image for ARM64-only APK splits.' -ForegroundColor Cyan
-Write-Host 'On this x86_64 AMD PC the ARM64 image cannot use hardware acceleration and may run very slowly.' -ForegroundColor Yellow
+Write-Host 'This setup requires a compatible Windows ARM64 host and emulator binary.' -ForegroundColor Yellow
 if ((Read-Host 'Continue? [y/N]') -notin @('y', 'Y', 'yes', 'YES')) { exit 0 }
 
 $env:ANDROID_HOME = $sdkRoot

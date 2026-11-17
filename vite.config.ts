@@ -49,7 +49,7 @@ export default defineConfig({
     watch: {
       // SDK images, AVD state and the optional uv-managed Python installation
       // are generated under the project folder and must not trigger HMR reloads.
-      ignored: ['**/android-sdk/**']
+      ignored: ['**/android-sdk/**', '**/resources/tools/mitmproxy/**']
     }
   },
   build: {
